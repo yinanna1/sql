@@ -25,3 +25,43 @@ GROUP BY：把行分组后再聚合
 HAVING：对“组”做过滤（聚合后筛选）
 
 条件计数：SUM(CASE WHEN 条件 THEN 1 ELSE 0 END)
+
+-Day4
+1) Window function = 不压扁行的聚合 + 还能排序（保留明细行）
+2) Top-N per group（每组 Top-N）
+
+Use when： 每个用户/部门/类别取前 N 条（按某个指标排序）
+WITH ranked AS (
+  SELECT
+    t.*,
+    ROW_NUMBER() OVER (PARTITION BY grp_col ORDER BY metric_col DESC) AS rn
+  FROM table_name t
+)
+SELECT *
+FROM ranked
+WHERE rn <= N;
+
+3) Dedupe keep latest（去重保留最新一条）
+
+Use when： 每个 user 只留最新记录 / 每个 key 保留最新状态
+WITH ranked AS (
+  SELECT
+    t.*,
+    ROW_NUMBER() OVER (PARTITION BY key_col ORDER BY ts_col DESC) AS rn
+  FROM table_name t
+)
+SELECT *
+FROM ranked
+WHERE rn = 1;
+
+4) Running total（累计）
+
+Use when： 余额/累计消费/累计访问量
+SELECT
+  t.*,
+  SUM(x) OVER (
+    PARTITION BY grp_col
+    ORDER BY dt_col
+    ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+  ) AS running_sum
+FROM table_name t;

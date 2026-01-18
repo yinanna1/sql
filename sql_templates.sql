@@ -18,3 +18,16 @@ SELECT product_id
 FROM products
 WHERE low_fats = 'Y'
   AND recyclable = 'Y';
+
+-- Day3 (1/16) Top-N per group
+
+/* Top N per group */
+ROW_NUMBER() OVER (PARTITION BY grp_col ORDER BY metric_col DESC) AS rn
+
+/* Dedupe keep latest */
+ROW_NUMBER() OVER (PARTITION BY key_col ORDER BY ts_col DESC) AS rn
+
+/* Running total */
+SUM(x) OVER (PARTITION BY grp_col ORDER BY dt_col
+             ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS running_sum
+
