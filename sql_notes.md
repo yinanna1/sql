@@ -10,14 +10,13 @@
 
 我今天跑通的验证：员工-经理 self join 查询 ✅
 
--Day2
 这是行级过滤，所以用 WHERE。
 
 两个条件都要满足，所以用 AND。
 
 只要 product_id，所以 SELECT product_id。
 
--Day3
+-Day2
 WHERE：先过滤“行”
 
 GROUP BY：把行分组后再聚合
@@ -26,7 +25,7 @@ HAVING：对“组”做过滤（聚合后筛选）
 
 条件计数：SUM(CASE WHEN 条件 THEN 1 ELSE 0 END)
 
--Day4
+-Day3
 1) Window function = 不压扁行的聚合 + 还能排序（保留明细行）
 2) Top-N per group（每组 Top-N）
 
@@ -65,3 +64,30 @@ SELECT
     ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
   ) AS running_sum
 FROM table_name t;
+
+--Day 4
+CTE vs Subquery（尤其 correlated subquery）：能说清楚什么时候用谁、优缺点、常见坑。
+  CTE: 更容易读， 可分步， 便于复用。 常用在“先聚合再计算”“多步清洗”
+  Subquery: 更适合一次性嵌套 
+    correlated subquery常用于：“每组找最新”
+  选择标准： 可读性、复用、是否需要多步
+CASE + Conditional Aggregation：用一条 SQL 做多个口径（count/sum by 条件、占比）。
+
+Date/Time + Trend：按天/周/月聚合、做 MoM/WoW、配合 LAG()。
+
+
+ROW_NUMBER/RANK/DENSE_RANK 区别 : 
+  ROW_NUMBER() gives unique 1..n; 
+  RANK() gives same rank for ties and skips numbers;
+  DENSE_RANK() give same rank for ties and doesn't skip
+PARTITION BY:
+  "restart the ranking/ calculation per group"
+ORDER BY:
+  inside OVER() = "define the sequence within each group"
+LAG/LEAD:
+  look at previous/next row in the same partition/order:
+  LAG(col,1) OVER(PARTITION BY ... ORDER BY ...) for MoM/WoW deltas
+running total 的写法:
+  SUM(x) OVER(PARTITION BY grp ORDER BY dt ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+Top-N per group :
+  rank in a subquery/CTE, then filter: WHERE rn <= N 

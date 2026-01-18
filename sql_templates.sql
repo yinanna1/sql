@@ -31,3 +31,41 @@ ROW_NUMBER() OVER (PARTITION BY key_col ORDER BY ts_col DESC) AS rn
 SUM(x) OVER (PARTITION BY grp_col ORDER BY dt_col
              ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS running_sum
 
+-- T1: Conditional Aggregation
+SELECT
+  user_id,
+  COUNT(*) AS total_cnt,
+  SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed_cnt,
+  SUM(CASE WHEN status = 'canceled'  THEN 1 ELSE 0 END) AS canceled_cnt,
+  1.0 * SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0) AS completed_rate
+FROM orders
+GROUP BY user_id;
+
+-- T2: CTE -> agg -> window (TopN per period)
+WITH monthly AS (
+  SELECT
+    user_id,
+    DATE_FORMAT(order_date, '%Y-%m') AS ym,
+    SUM(amount) AS revenue
+  FROM orders
+  GROUP BY user_id, DATE_FORMAT(order_date, '%Y-%m')
+)
+SELECT *
+FROM (
+  SELECT
+    ym, user_id, revenue,
+    DENSE_RANK() OVER (PARTITION BY ym ORDER BY revenue DESC) AS rnk
+  FROM monthly
+) t
+WHERE rnk <= 3;
+
+-- T3: Latest per group (correlated subquery)
+SELECT t1.*
+FROM events t1
+WHERE t1.event_time = (
+  SELECT MAX(t2.event_time)
+  FROM events t2
+  WHERE t2.user_id = t1.user_id
+);
+
+
