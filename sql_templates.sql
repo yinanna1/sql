@@ -67,5 +67,140 @@ WHERE t1.event_time = (
   FROM events t2
   WHERE t2.user_id = t1.user_id
 );
+-- day5
+/*WHERE VS HAVING
+	WHERE filters rows BEFORE grouping
+	HAVING filters AFTER grouping
+*/
+
+SELECT customer_id, COUNT(*) AS order_cnt
+FROM orders
+GROUP BY customer_id
+HAVING COUNT(*) >= 2;
+
+/*Anti-join: “A but not in B” (no matching rows)
+LEFT JOIN + IS NULL*/
+SELECT c.*
+FROM customers c
+LEFT JOIN orders o
+  ON o.customer_id = c.customer_id
+WHERE o.order_id IS NULL;   -- use a NOT-NULL column from o (usually PK)
+
+/*3) NULL handling essentials*/
+-- COUNT(*) vs COUNT(col)
+SELECT
+  COUNT(*) AS total_rows,
+  COUNT(amount) AS non_null_amount_rows,
+  SUM(CASE WHEN amount IS NULL THEN 1 ELSE 0 END) AS null_amount_rows
+FROM orders;
+
+-- COALESCE for default values
+SELECT SUM(COALESCE(amount, 0)) AS total_amount
+FROM orders;
+
+-- safe division
+SELECT 1.0 * num / NULLIF(den, 0) AS rate;
+
+/*RANK vs DENSE_RANK vs ROW_NUMBER (ties behavior)*/
+-- ties: RANK (1,1,3) / DENSE_RANK (1,1,2) / ROW_NUMBER (1,2,3)
+RANK()       OVER (PARTITION BY grp ORDER BY metric DESC) AS rnk
+DENSE_RANK() OVER (PARTITION BY grp ORDER BY metric DESC) AS drnk
+ROW_NUMBER() OVER (PARTITION BY grp ORDER BY metric DESC) AS rn
+
+/*LAG/LEAD (diff vs previous/next)*/
+SELECT
+  t.*,
+  LAG(value_col)  OVER (PARTITION BY key_col ORDER BY dt_col) AS prev_val,
+  value_col - LAG(value_col) OVER (PARTITION BY key_col ORDER BY dt_col) AS diff_prev
+FROM your_table t;
+
+/*Moving average (rows-based)*/
+AVG(x) OVER (
+  PARTITION BY grp_col
+  ORDER BY dt_col
+  ROWS BETWEEN 6 PRECEDING AND CURRENT ROW
+) AS ma7
+
+/*Percent of total (per group)*/
+SELECT
+  t.*,
+  1.0 * amount / SUM(amount) OVER (PARTITION BY grp_col) AS pct_of_group
+FROM your_table t;
+
+/*Consecutive days*/
+WITH d AS (
+  SELECT DISTINCT key_col, DATE(dt_col) AS dt
+  FROM your_table
+),
+x AS (
+  SELECT
+    key_col,
+    dt,
+    DATE_SUB(
+      dt,
+      INTERVAL ROW_NUMBER() OVER (PARTITION BY key_col ORDER BY dt) DAY
+    ) AS grp
+  FROM d
+),
+runs AS (
+  SELECT
+    key_col,
+    grp,
+    COUNT(*) AS len,
+    MIN(dt) AS start_day,
+    MAX(dt) AS end_day
+  FROM x
+  GROUP BY key_col, grp
+)
+SELECT *
+FROM runs
+WHERE len >= 3;  -- k consecutive days
+
+/*MoM / YoY*/
+WITH monthly AS (
+  SELECT
+    DATE_FORMAT(order_date, '%Y-%m-01') AS month_start,
+    SUM(amount) AS month_sales
+  FROM orders
+  GROUP BY DATE_FORMAT(order_date, '%Y-%m-01')
+)
+SELECT
+  month_start,
+  month_sales,
+  month_sales - LAG(month_sales) OVER (ORDER BY month_start) AS mom_diff,
+  (month_sales - LAG(month_sales) OVER (ORDER BY month_start))
+    / NULLIF(LAG(month_sales) OVER (ORDER BY month_start), 0) AS mom_pct
+FROM monthly
+ORDER BY month_start;
+
+/*JOIN pitfall: LEFT JOIN accidentally becomes INNER*/
+SELECT *
+FROM A
+LEFT JOIN B
+  ON B.a_id = A.id
+ AND B.status = 'ok';
+
+/*Latest per group”*/
+WITH x AS (
+  SELECT
+    e.*,
+    ROW_NUMBER() OVER (
+      PARTITION BY user_id
+      ORDER BY event_time DESC, event_id DESC
+    ) AS rn
+  FROM events e
+)
+SELECT *
+FROM x
+WHERE rn = 1;
+
+/*Distinct counting*/
+-- count unique users per day
+SELECT
+  order_date,
+  COUNT(DISTINCT user_id) AS users
+FROM orders
+GROUP BY order_date;
+
 
 

@@ -91,3 +91,12 @@ running total 的写法:
   SUM(x) OVER(PARTITION BY grp ORDER BY dt ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
 Top-N per group :
   rank in a subquery/CTE, then filter: WHERE rn <= N 
+
+--DAY 5
+✅ JOIN 4 种：INNER / LEFT / 何时用 RIGHT（少用）/ self join
+
+✅ 聚合：GROUP BY + HAVING 区别（面试必问）
+
+✅ 去重：DISTINCT vs GROUP BY vs 窗口函数去重思路
+
+✅ NULL：COUNT(*) vs COUNT(col)、COALESCE 常用场景
