@@ -202,5 +202,52 @@ SELECT
 FROM orders
 GROUP BY order_date;
 
+-- Day4 (1/19) ADD-ON templates (NEW only)
+
+/* A) Conditional DISTINCT count (条件 + 去重 统计) */
+SELECT
+  DATE(order_date) AS dt,
+  COUNT(DISTINCT CASE WHEN status = 'completed' THEN user_id END) AS completed_users,
+  COUNT(DISTINCT CASE WHEN status = 'canceled'  THEN user_id END) AS canceled_users
+FROM orders
+GROUP BY DATE(order_date);
+
+/* B) Pivot-style aggregation (把行“横”成列：按渠道拆列) */
+SELECT
+  user_id,
+  SUM(CASE WHEN channel = 'app' THEN amount ELSE 0 END) AS revenue_app,
+  SUM(CASE WHEN channel = 'web' THEN amount ELSE 0 END) AS revenue_web
+FROM orders
+GROUP BY user_id;
+
+/* C) Ratio filter with HAVING (用比例筛分组) */
+SELECT
+  user_id,
+  COUNT(*) AS total_cnt,
+  SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed_cnt,
+  1.0 * SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0) AS completed_rate
+FROM orders
+GROUP BY user_id
+HAVING 1.0 * SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0) >= 0.7;
+
+/* D) COUNT DISTINCT on multiple columns (多列去重计数：MySQL 支持) */
+SELECT
+  COUNT(DISTINCT user_id, order_date) AS unique_user_days
+FROM orders;
+
+/* E) Weighted average (加权平均) */
+SELECT
+  grp_col,
+  1.0 * SUM(value_col * weight_col) / NULLIF(SUM(weight_col), 0) AS weighted_avg
+FROM your_table
+GROUP BY grp_col;
+
+/* F) Subtotals / Grand total (ROLLUP：小计 + 总计) */
+SELECT
+  channel,
+  status,
+  SUM(amount) AS revenue
+FROM orders
+GROUP BY channel, status WITH ROLLUP;
 
 

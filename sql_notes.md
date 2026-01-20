@@ -100,3 +100,25 @@ Top-N per group :
 ✅ 去重：DISTINCT vs GROUP BY vs 窗口函数去重思路
 
 ✅ NULL：COUNT(*) vs COUNT(col)、COALESCE 常用场景
+
+-- Day 6 
+GROUP BY：按某列分组再聚合（group then aggregate）
+
+WHERE vs HAVING：
+
+WHERE 过滤“原始行”（filter rows before grouping）
+
+HAVING 过滤“分组结果”（filter groups after aggregation）
+
+COUNT(*) vs COUNT(col)：
+
+COUNT(*) 统计行数（包括 NULL）
+
+COUNT(col) 不数 NULL
+
+DISTINCT：去重统计常用 COUNT(DISTINCT col)
+
+条件聚合（conditional aggregation）：
+SUM(CASE WHEN condition THEN 1 ELSE 0 END)
+
+NULL 处理：COALESCE(col, 0) / IFNULL(col, 0)（MySQL）
