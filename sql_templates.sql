@@ -250,4 +250,118 @@ SELECT
 FROM orders
 GROUP BY channel, status WITH ROLLUP;
 
+-- DAY 7(1/21)
+/*1) Order-level amount（先把明细变成订单金额，防止 join 放大）*/
+/* Order amount from order_items */
+WITH order_amount AS (
+  SELECT
+    order_id,
+    SUM(qty * unit_price) AS amount
+  FROM order_items
+  GROUP BY order_id
+)
 
+/*LEFT JOIN 保留所有用户（右表过滤条件放 ON + COALESCE）*/
+/* Keep all users even if no completed orders */
+WITH order_amount AS (
+  SELECT order_id, SUM(qty * unit_price) AS amount
+  FROM order_items
+  GROUP BY order_id
+)
+SELECT
+  u.user_id,
+  COUNT(o.order_id) AS completed_order_cnt,      -- COUNT(col) ignores NULL
+  COALESCE(SUM(oa.amount), 0) AS completed_spend -- SUM could be NULL -> 0
+FROM users u
+LEFT JOIN orders o
+  ON u.user_id = o.user_id
+ AND o.status = 'completed'   -- IMPORTANT: filter on ON, not WHERE
+LEFT JOIN order_amount oa
+  ON o.order_id = oa.order_id
+GROUP BY u.user_id;
+
+/*LEFT JOIN + 右表条件放 WHERE 会把 NULL 行过滤掉 → 变相 INNER JOIN*/
+
+/*3) “按维度汇总收入”通用模板（channel/category 都能套*/
+/* Revenue by dimension (e.g., channel / category) */
+WITH order_amount AS (
+  SELECT order_id, SUM(qty * unit_price) AS amount
+  FROM order_items
+  GROUP BY order_id
+)
+SELECT
+  o.channel,                 -- 换成你要的维度
+  COUNT(*) AS completed_cnt,
+  SUM(oa.amount) AS revenue,
+  AVG(oa.amount) AS aov
+FROM orders o
+JOIN order_amount oa ON o.order_id = oa.order_id
+WHERE o.status = 'completed'
+GROUP BY o.channel;
+
+/*4) COUNT DISTINCT + HAVING（买过 ≥2 类 / 达到门槛）*/
+
+/* Users who bought >= N distinct categories (completed only) */
+SELECT
+  o.user_id,
+  COUNT(DISTINCT p.category) AS distinct_category_cnt,
+  SUM(oi.qty * oi.unit_price) AS spend
+FROM orders o
+JOIN order_items oi ON o.order_id = oi.order_id
+JOIN products p ON oi.product_id = p.product_id
+WHERE o.status = 'completed'
+GROUP BY o.user_id
+HAVING COUNT(DISTINCT p.category) >= 2;
+
+/*Top N products per category by revenue（CTE算 sales + window 排名）*/
+
+/* Top N products per category by revenue (completed only) */
+WITH product_sales AS (
+  SELECT
+    p.category,
+    oi.product_id,
+    SUM(oi.qty * oi.unit_price) AS revenue
+  FROM order_items oi
+  JOIN products p ON oi.product_id = p.product_id
+  JOIN orders o ON oi.order_id = o.order_id
+  WHERE o.status = 'completed'
+  GROUP BY p.category, oi.product_id
+),
+ranked AS (
+  SELECT
+    category,
+    product_id,
+    revenue,
+    ROW_NUMBER() OVER (
+      PARTITION BY category
+      ORDER BY revenue DESC, product_id ASC
+    ) AS rn
+  FROM product_sales
+)
+SELECT category, product_id, revenue
+FROM ranked
+WHERE rn <= 2;
+
+/*6) Latest completed order per user（结合 order_amount + ROW_NUMBER）
+*/
+
+/* Latest completed order per user */
+WITH order_amount AS (
+  SELECT order_id, SUM(qty * unit_price) AS amount
+  FROM order_items
+  GROUP BY order_id
+),
+ranked AS (
+  SELECT
+    o.user_id, o.order_id, o.order_date, oa.amount,
+    ROW_NUMBER() OVER (
+      PARTITION BY o.user_id
+      ORDER BY o.order_date DESC, o.order_id DESC
+    ) AS rn
+  FROM orders o
+  JOIN order_amount oa ON o.order_id = oa.order_id
+  WHERE o.status = 'completed'
+)
+SELECT user_id, order_id, order_date, amount
+FROM ranked
+WHERE rn = 1;

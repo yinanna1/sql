@@ -122,3 +122,16 @@ DISTINCT：去重统计常用 COUNT(DISTINCT col)
 SUM(CASE WHEN condition THEN 1 ELSE 0 END)
 
 NULL 处理：COALESCE(col, 0) / IFNULL(col, 0)（MySQL）
+
+--Day 7 
+今天主题：JOIN + GROUP BY + 窗口函数（window）
+1) INNER JOIN VS. LEFT
+  INNER JOIN: 只要双方都匹配的行
+    用在：你只关心有对应关系的数据
+  LEFT JOIN: 保留左表全部行，右表匹配不到就补NULL
+    用在：左表为主，不想丢数据
+2) ON 写错会放大行数(many to many)
+  先聚合再join
+3) WHERE VS ON
+
+我先确定最终每行代表的粒度（比如每个用户一行），再决定 JOIN 会不会引入重复行。如果右表是一对多，我通常会先把右表聚合到需要的粒度再 join，避免统计被重复行放大。LEFT JOIN 时如果要保留左表全量，我会把右表过滤条件放在 ON，而不是 WHERE
