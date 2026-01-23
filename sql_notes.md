@@ -135,3 +135,37 @@ NULL 处理：COALESCE(col, 0) / IFNULL(col, 0)（MySQL）
 3) WHERE VS ON
 
 我先确定最终每行代表的粒度（比如每个用户一行），再决定 JOIN 会不会引入重复行。如果右表是一对多，我通常会先把右表聚合到需要的粒度再 join，避免统计被重复行放大。LEFT JOIN 时如果要保留左表全量，我会把右表过滤条件放在 ON，而不是 WHERE
+
+-- DAY 8
+
+A.聚合
+SELECT key, COUNT(*) AS cnt, SUM(x) AS sx
+FROM t
+WHERE ...
+GROUP BY key
+HAVING COUNT(*) >= ...
+ORDER BY cnt DESC;
+
+B. LEFT JOIN 找“缺失” (Anti-Join)
+
+SELECT a.*
+FROM A a
+LEFT JOIN B b ON a.id = b.a_id
+WHERE b.a_id IS NULL;
+
+C. 条件聚合（一个查询出多列指标）
+SELECT id,
+       SUM(CASE WHEN status='paid' THEN 1 ELSE 0 END) AS paid_cnt,
+       SUM(CASE WHEN status='refund' THEN 1 ELSE 0 END) AS refund_cnt
+FROM t
+GROUP BY id;
+
+D. 窗口函数 Top1 / 去重保留最新
+WITH x AS (
+  SELECT *,
+         ROW_NUMBER() OVER (PARTITION BY grp ORDER BY ts DESC) AS rn
+  FROM t
+)
+SELECT *
+FROM x
+WHERE rn = 1;
