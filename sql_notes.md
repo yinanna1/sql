@@ -169,3 +169,31 @@ WITH x AS (
 SELECT *
 FROM x
 WHERE rn = 1;
+
+-- DAY 9 
+“JOIN + 聚合粒度 + 子查询/CTE + NULL + CASE + 日期”
+
+1) 中文题： 这道题的“粒度”是什么？
+中文答： 粒度就是你最终结果里“每一行代表什么”（比如每个用户/每个订单/每天/每个部门）。粒度没想清楚就 JOIN 或聚合，很容易重复计数或漏算。先确定粒度，再决定 GROUP BY、JOIN 顺序和过滤位置。
+
+2) 中文题： 为什么 JOIN 之后行数会变多？怎么避免 SUM/COUNT 重复？
+中文答： 一对多/多对多 JOIN 会把主表一行复制成多行，导致聚合被放大。常见解法：先在“多”的那一侧聚合到目标粒度再 JOIN；或用 DISTINCT / EXISTS 控制；或检查 join key 是否唯一。
+
+3) 中文题： LEFT JOIN 为什么会被写成 INNER JOIN？
+中文答： 如果你在 WHERE 里写了右表条件（例如 WHERE b.status='x'），会把 b 为 NULL 的行过滤掉，效果就像 INNER JOIN。想保留左表所有行，把右表过滤条件写在 ON 里，或在 WHERE 用 b.status='x' OR b.status IS NULL（看需求）。
+
+4) 中文题： 过滤条件应该放 ON 还是 WHERE？
+中文答： 对 INNER JOIN，放 ON 或 WHERE 通常等价；对 LEFT JOIN 不等价。需要“保留左表所有行”时，右表条件通常放 ON；如果你就是要筛掉不匹配的行，放 WHERE。
+
+5) 中文题： COUNT() 和 COUNT(column) 的区别？
+中文答： COUNT() 统计行数（包括 column 为 NULL 的行）；COUNT(column) 只统计该列非 NULL 的行。面试常问你是否意识到 NULL 会影响计数。
+
+6) 中文题： 为什么 NOT IN 可能出错？怎么写更安全？
+中文答： 如果子查询结果里出现 NULL，NOT IN 可能导致整体比较变成 UNKNOWN，返回空结果或不符合预期。更安全用 NOT EXISTS（相关子查询），或保证子查询过滤掉 NULL。
+
+7) 中文题： 为什么不能写 col = NULL？
+中文答： NULL 表示未知，任何与 NULL 的等号比较都不是 TRUE。应该用 IS NULL / IS NOT NULL。如果要把 NULL 当作某个默认值比较，用 COALESCE(col, default)。
+
+8) 中文题： DISTINCT vs GROUP BY？
+中文答： DISTINCT 是“去重输出行”；GROUP BY 是“按键分组并可做聚合”。如果只是去重，用 DISTINCT；如果需要统计/求和/最大值等聚合，用 GROUP BY。
+
